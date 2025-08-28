@@ -152,6 +152,9 @@ void frost_api_tests(void) {
     size_t ids[5];
     const secp256k1_pubkey *pubshare_ptr[5];
 
+    (void)invalid_vss_commitment;
+    (void)invalid_pubnonce_ptr;
+
     /** setup **/
     memset(max64, 0xff, sizeof(max64));
     /* Simulate structs being uninitialized by setting it to 0s. We don't want
