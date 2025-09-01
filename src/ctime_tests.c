@@ -372,7 +372,6 @@ static void run_tests(secp256k1_context *ctx, unsigned char *key) {
         int nonce_parity;
         secp256k1_frost_secshare shares[2];
         secp256k1_pubkey vss_commitment[2];
-        unsigned char key2[32];
         size_t ids[2] = {0, 1};
         secp256k1_pubkey pubshare[2];
         const secp256k1_pubkey *pubshares_ptr[2];
