@@ -314,7 +314,8 @@ int secp256k1_frost_pubkey_get(const secp256k1_context* ctx, secp256k1_pubkey *a
 int secp256k1_frost_pubkey_gen(const secp256k1_context* ctx, secp256k1_frost_keygen_cache *cache, const secp256k1_pubkey * const *pubshares, size_t n_pubshares, const size_t *ids) {
     secp256k1_gej pkj;
     secp256k1_frost_interpolate_pubkey_ecmult_data interpolate_pubkey_ecmult_data;
-    secp256k1_keygen_cache_internal cache_i = { 0 };
+    secp256k1_keygen_cache_internal cache_i;
+    memset(&cache_i, 0, sizeof(cache_i));
 
     VERIFY_CHECK(ctx != NULL);
     ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));

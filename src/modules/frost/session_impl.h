@@ -406,10 +406,12 @@ int secp256k1_frost_nonce_process(const secp256k1_context* ctx, secp256k1_frost_
     secp256k1_keygen_cache_internal cache_i;
     secp256k1_gej aggnonce_ptj[2];
     unsigned char fin_nonce[32];
-    secp256k1_frost_session_internal session_i = { 0 };
+    secp256k1_frost_session_internal session_i;
     unsigned char pk32[32];
     secp256k1_scalar l;
-
+    
+    memset(&session_i, 0, sizeof(session_i));
+    
     VERIFY_CHECK(ctx != NULL);
     ARG_CHECK(session != NULL);
     ARG_CHECK(msg32 != NULL);
