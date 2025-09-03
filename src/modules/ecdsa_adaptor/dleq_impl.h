@@ -18,7 +18,7 @@ static void secp256k1_nonce_function_dleq_sha256_tagged(secp256k1_sha256 *sha) {
 }
 
 /* algo argument for nonce_function_ecdsa_adaptor to derive the nonce using a tagged hash function. */
-static const unsigned char dleq_algo[4] = "DLEQ";
+static const unsigned char dleq_algo[] = "DLEQ";
 
 static int secp256k1_dleq_hash_point(secp256k1_sha256 *sha, secp256k1_ge *p) {
     unsigned char buf[33];
@@ -47,7 +47,7 @@ static int secp256k1_dleq_nonce(secp256k1_scalar *k, const unsigned char *sk32, 
     secp256k1_sha256_write(&sha, p2_33, size);
     secp256k1_sha256_finalize(&sha, buf);
 
-    if (!noncefp(nonce, buf, sk32, gen2_33, dleq_algo, sizeof(dleq_algo), ndata)) {
+    if (!noncefp(nonce, buf, sk32, gen2_33, dleq_algo, sizeof(dleq_algo)-1, ndata)) {
         return 0;
     }
     secp256k1_scalar_set_b32(k, nonce, NULL);

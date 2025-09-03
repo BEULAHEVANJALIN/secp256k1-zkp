@@ -19,14 +19,14 @@
 static uint64_t secp256k1_test_state[4];
 
 SECP256K1_INLINE static void secp256k1_testrand_seed(const unsigned char *seed16) {
-    static const unsigned char PREFIX[19] = "secp256k1 test init";
+    static const unsigned char PREFIX[] = "secp256k1 test init";
     unsigned char out32[32];
     secp256k1_sha256 hash;
     int i;
 
     /* Use SHA256(PREFIX || seed16) as initial state. */
     secp256k1_sha256_initialize(&hash);
-    secp256k1_sha256_write(&hash, PREFIX, sizeof(PREFIX));
+    secp256k1_sha256_write(&hash, PREFIX, sizeof(PREFIX)-1);
     secp256k1_sha256_write(&hash, seed16, 16);
     secp256k1_sha256_finalize(&hash, out32);
     for (i = 0; i < 4; ++i) {

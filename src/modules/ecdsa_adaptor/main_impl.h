@@ -98,7 +98,7 @@ static void secp256k1_nonce_function_ecdsa_adaptor_sha256_tagged_aux(secp256k1_s
 }
 
 /* algo argument for nonce_function_ecdsa_adaptor to derive the nonce using a tagged hash function. */
-static const unsigned char ecdsa_adaptor_algo[16] = "ECDSAadaptor/non";
+static const unsigned char ecdsa_adaptor_algo[] = "ECDSAadaptor/non";
 
 /* Modified BIP-340 nonce function */
 static int nonce_function_ecdsa_adaptor(unsigned char *nonce32, const unsigned char *msg32, const unsigned char *key32, const unsigned char *pk33, const unsigned char *algo, size_t algolen, void *data) {
@@ -122,7 +122,7 @@ static int nonce_function_ecdsa_adaptor(unsigned char *nonce32, const unsigned c
     /* Tag the hash with algo which is important to avoid nonce reuse across
      * algorithims. An optimized tagging implementation is used if the default
      * tag is provided. */
-    if (algolen == sizeof(ecdsa_adaptor_algo)
+    if (algolen == sizeof(ecdsa_adaptor_algo)-1
             && secp256k1_memcmp_var(algo, ecdsa_adaptor_algo, algolen) == 0) {
         secp256k1_nonce_function_ecdsa_adaptor_sha256_tagged(&sha);
     } else if (algolen == sizeof(dleq_algo)
@@ -179,7 +179,7 @@ int secp256k1_ecdsa_adaptor_encrypt(const secp256k1_context* ctx, unsigned char 
 
     ret &= secp256k1_pubkey_load(ctx, &enckey_ge, enckey);
     ret &= secp256k1_eckey_pubkey_serialize(&enckey_ge, buf33, &size, 1);
-    ret &= !!noncefp(nonce32, msg32, seckey32, buf33, ecdsa_adaptor_algo, sizeof(ecdsa_adaptor_algo), ndata);
+    ret &= !!noncefp(nonce32, msg32, seckey32, buf33, ecdsa_adaptor_algo, sizeof(ecdsa_adaptor_algo)-1, ndata);
     secp256k1_scalar_set_b32(&k, nonce32, NULL);
     ret &= !secp256k1_scalar_is_zero(&k);
     secp256k1_scalar_cmov(&k, &secp256k1_scalar_one, !ret);
