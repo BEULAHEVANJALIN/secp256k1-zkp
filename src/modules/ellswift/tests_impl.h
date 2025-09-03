@@ -406,28 +406,28 @@ void run_ellswift_tests(void) {
     /* Test hash initializers. */
     {
         secp256k1_sha256 sha, sha_optimized;
-        static const unsigned char encode_tag[25] = "secp256k1_ellswift_encode";
-        static const unsigned char create_tag[25] = "secp256k1_ellswift_create";
-        static const unsigned char bip324_tag[26] = "bip324_ellswift_xonly_ecdh";
+        static const unsigned char encode_tag[] = "secp256k1_ellswift_encode";
+        static const unsigned char create_tag[] = "secp256k1_ellswift_create";
+        static const unsigned char bip324_tag[] = "bip324_ellswift_xonly_ecdh";
 
         /* Check that hash initialized by
          * secp256k1_ellswift_sha256_init_encode has the expected
          * state. */
-        secp256k1_sha256_initialize_tagged(&sha, encode_tag, sizeof(encode_tag));
+        secp256k1_sha256_initialize_tagged(&sha, encode_tag, sizeof(encode_tag)-1);
         secp256k1_ellswift_sha256_init_encode(&sha_optimized);
         test_sha256_eq(&sha, &sha_optimized);
 
         /* Check that hash initialized by
          * secp256k1_ellswift_sha256_init_create has the expected
          * state. */
-        secp256k1_sha256_initialize_tagged(&sha, create_tag, sizeof(create_tag));
+        secp256k1_sha256_initialize_tagged(&sha, create_tag, sizeof(create_tag)-1);
         secp256k1_ellswift_sha256_init_create(&sha_optimized);
         test_sha256_eq(&sha, &sha_optimized);
 
         /* Check that hash initialized by
          * secp256k1_ellswift_sha256_init_bip324 has the expected
          * state. */
-        secp256k1_sha256_initialize_tagged(&sha, bip324_tag, sizeof(bip324_tag));
+        secp256k1_sha256_initialize_tagged(&sha, bip324_tag, sizeof(bip324_tag)-1);
         secp256k1_ellswift_sha256_init_bip324(&sha_optimized);
         test_sha256_eq(&sha, &sha_optimized);
     }

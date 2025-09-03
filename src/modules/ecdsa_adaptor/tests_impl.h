@@ -730,11 +730,11 @@ static void ecdsa_adaptor_test_sha256_eq(const secp256k1_sha256 *sha1, const sec
 }
 
 static void run_nonce_function_ecdsa_adaptor_tests(void) {
-    unsigned char tag[16] = "ECDSAadaptor/non";
-    unsigned char aux_tag[16] = "ECDSAadaptor/aux";
-    unsigned char algo[16] = "ECDSAadaptor/non";
-    size_t algolen = sizeof(algo);
-    unsigned char dleq_tag[4] = "DLEQ";
+    unsigned char tag[] = "ECDSAadaptor/non";
+    unsigned char aux_tag[] = "ECDSAadaptor/aux";
+    unsigned char algo[] = "ECDSAadaptor/non";
+    size_t algolen = sizeof(algo)-1;
+    unsigned char dleq_tag[] = "DLEQ";
     secp256k1_sha256 sha;
     secp256k1_sha256 sha_optimized;
     unsigned char nonce[32];
@@ -748,21 +748,21 @@ static void run_nonce_function_ecdsa_adaptor_tests(void) {
     /* Check that hash initialized by
      * secp256k1_nonce_function_ecdsa_adaptor_sha256_tagged has the expected
      * state. */
-    secp256k1_sha256_initialize_tagged(&sha, tag, sizeof(tag));
+    secp256k1_sha256_initialize_tagged(&sha, tag, sizeof(tag)-1);
     secp256k1_nonce_function_ecdsa_adaptor_sha256_tagged(&sha_optimized);
     ecdsa_adaptor_test_sha256_eq(&sha, &sha_optimized);
 
    /* Check that hash initialized by
     * secp256k1_nonce_function_ecdsa_adaptor_sha256_tagged_aux has the expected
     * state. */
-    secp256k1_sha256_initialize_tagged(&sha, aux_tag, sizeof(aux_tag));
+    secp256k1_sha256_initialize_tagged(&sha, aux_tag, sizeof(aux_tag)-1);
     secp256k1_nonce_function_ecdsa_adaptor_sha256_tagged_aux(&sha_optimized);
     ecdsa_adaptor_test_sha256_eq(&sha, &sha_optimized);
 
    /* Check that hash initialized by
     * secp256k1_nonce_function_dleq_sha256_tagged_aux has the expected
     * state. */
-    secp256k1_sha256_initialize_tagged(&sha, dleq_tag, sizeof(dleq_tag));
+    secp256k1_sha256_initialize_tagged(&sha, dleq_tag, sizeof(dleq_tag)-1);
     secp256k1_nonce_function_dleq_sha256_tagged(&sha_optimized);
     ecdsa_adaptor_test_sha256_eq(&sha, &sha_optimized);
 
@@ -782,9 +782,9 @@ static void run_nonce_function_ecdsa_adaptor_tests(void) {
         nonce_function_ecdsa_adaptor_bitflip(args, 1, sizeof(key), algolen);
         nonce_function_ecdsa_adaptor_bitflip(args, 2, sizeof(pk), algolen);
         /* Flip algo special case "ECDSAadaptor/non" */
-        nonce_function_ecdsa_adaptor_bitflip(args, 3, sizeof(algo), algolen);
+        nonce_function_ecdsa_adaptor_bitflip(args, 3, sizeof(algo)-1, algolen);
         /* Flip algo again */
-        nonce_function_ecdsa_adaptor_bitflip(args, 3, sizeof(algo), algolen);
+        nonce_function_ecdsa_adaptor_bitflip(args, 3, sizeof(algo)-1, algolen);
         nonce_function_ecdsa_adaptor_bitflip(args, 4, sizeof(aux_rand), algolen);
     }
 

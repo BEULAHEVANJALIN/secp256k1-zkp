@@ -45,7 +45,7 @@ static void secp256k1_nonce_function_bip340_sha256_tagged_aux(secp256k1_sha256 *
 
 /* algo argument for nonce_function_bip340 to derive the nonce exactly as stated in BIP-340
  * by using the correct tagged hash function. */
-static const unsigned char bip340_algo[13] = "BIP0340/nonce";
+static const unsigned char bip340_algo[] = "BIP0340/nonce";
 
 static const unsigned char schnorrsig_extraparams_magic[4] = SECP256K1_SCHNORRSIG_EXTRAPARAMS_MAGIC;
 
@@ -81,7 +81,7 @@ static int nonce_function_bip340(unsigned char *nonce32, const unsigned char *ms
     /* Tag the hash with algo which is important to avoid nonce reuse across
      * algorithms. If this nonce function is used in BIP-340 signing as defined
      * in the spec, an optimized tagging implementation is used. */
-    if (algolen == sizeof(bip340_algo)
+    if (algolen == sizeof(bip340_algo)-1
             && secp256k1_memcmp_var(algo, bip340_algo, algolen) == 0) {
         secp256k1_nonce_function_bip340_sha256_tagged(&sha);
     } else {
@@ -161,7 +161,7 @@ static int secp256k1_schnorrsig_sign_internal(const secp256k1_context* ctx, unsi
 
     secp256k1_scalar_get_b32(seckey, &sk);
     secp256k1_fe_get_b32(pk_buf, &pk.x);
-    ret &= !!noncefp(buf, msg, msglen, seckey, pk_buf, bip340_algo, sizeof(bip340_algo), ndata);
+    ret &= !!noncefp(buf, msg, msglen, seckey, pk_buf, bip340_algo, sizeof(bip340_algo)-1, ndata);
     secp256k1_scalar_set_b32(&k, buf, NULL);
     ret &= !secp256k1_scalar_is_zero(&k);
     secp256k1_scalar_cmov(&k, &secp256k1_scalar_one, !ret);

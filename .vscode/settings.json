@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "secp256k1_preallocated.h": "c",
+        "secp256k1_schnorrsig.h": "c"
+    }
+}
