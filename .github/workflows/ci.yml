@@ -420,18 +420,38 @@ jobs:
         if: ${{ always() }}
 
   valgrind_debian:
-    name: "Valgrind (memcheck)"
-    runs-on: ubuntu-latest
+    name: "Valgrind ${{ matrix.binary_arch }} (memcheck)"
+    runs-on: ${{ matrix.runner }}
     needs: docker_cache
 
     strategy:
       fail-fast: false
       matrix:
-        configuration:
-          - env_vars: { CC: 'clang',                                      ASM: 'auto' }
-          - env_vars: { CC: 'i686-linux-gnu-gcc', HOST: 'i686-linux-gnu', ASM: 'auto' }
-          - env_vars: { CC: 'clang',                                      ASM: 'no', ECMULTGENPRECISION: 2, ECMULTWINDOW: 2 }
-          - env_vars: { CC: 'i686-linux-gnu-gcc', HOST: 'i686-linux-gnu', ASM: 'no', ECMULTGENPRECISION: 2, ECMULTWINDOW: 2 }
+        include:
+          - docker_arch: x64
+            runner: ubuntu-latest
+            binary_arch: x64
+            env_vars: { CC: 'clang',                                      ASM: 'auto' }
+          - docker_arch: x64
+            runner: ubuntu-latest
+            binary_arch: i686
+            env_vars: { CC: 'i686-linux-gnu-gcc', HOST: 'i686-linux-gnu', ASM: 'auto' }
+          - docker_arch: arm64
+            runner: ubuntu-24.04-arm
+            binary_arch: arm64
+            env_vars: { CC: 'clang',                                      ASM: 'auto' }
+          - docker_arch: x64
+            runner: ubuntu-latest
+            binary_arch: x64
+            env_vars: { CC: 'clang',                                      ASM: 'no', ECMULTGENKB: 2, ECMULTWINDOW: 2 }
+          - docker_arch: x64
+            runner: ubuntu-latest
+            binary_arch: i686
+            env_vars: { CC: 'i686-linux-gnu-gcc', HOST: 'i686-linux-gnu', ASM: 'no', ECMULTGENKB: 2, ECMULTWINDOW: 2 }
+          - docker_arch: arm64
+            runner: ubuntu-24.04-arm
+            binary_arch: arm64
+            env_vars: { CC: 'clang',                                      ASM: 'no', ECMULTGENKB: 2, ECMULTWINDOW: 2 }
 
     env:
       # The `--error-exitcode` is required to make the test fail if valgrind found errors,
@@ -458,11 +478,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: CI script
-        env: ${{ matrix.configuration.env_vars }}
+        env: ${{ matrix.env_vars }}
         uses: ./.github/actions/run-in-docker-action
         with:
           dockerfile: ./ci/linux-debian.Dockerfile
-          tag: linux-debian-image
+          tag: ${{ matrix.docker_arch }}-debian-image
 
       - run: cat tests.log || true
         if: ${{ always() }}
@@ -556,11 +576,18 @@ jobs:
       matrix:
         configuration:
           - env_vars:
+              CTIMETESTS: 'yes'
               CFLAGS: '-fsanitize=memory -fsanitize-recover=memory -g'
           - env_vars:
               ECMULTGENPRECISION: 2
               ECMULTWINDOW: 2
+              CTIMETESTS: 'yes'
               CFLAGS: '-fsanitize=memory -fsanitize-recover=memory -g -O3'
+          - env_vars:
+              # -fsanitize-memory-param-retval is clang's default, but our build system disables it
+              # when ctime_tests when enabled.
+              CFLAGS: '-fsanitize=memory -fsanitize-recover=memory -fsanitize-memory-param-retval -g'
+              CTIMETESTS: 'no'
 
     env:
       ECDH: 'yes'
@@ -576,7 +603,6 @@ jobs:
       ECDSAADAPTOR: 'yes'
       BPPP: 'yes'
       SCHNORRSIG_HALFAGG: 'yes'
-      CTIMETESTS: 'yes'
       CC: 'clang'
       SECP256K1_TEST_ITERS: 32
       ASM: 'no'
@@ -674,10 +700,10 @@ jobs:
         run: env
         if: ${{ always() }}
 
-  macos-native:
-    name: "x86_64: macOS Monterey"
+  x86_64-macos-native:
+    name: "x86_64: macOS Ventura, Valgrind"
     # See: https://github.com/actions/runner-images#available-images.
-    runs-on: macos-12 # Use M1 once available https://github.com/github/roadmap/issues/528
+    runs-on: macos-13
 
     env:
       CC: 'clang'
@@ -705,11 +731,67 @@ jobs:
 
       - name: Install Homebrew packages
         run: |
-          brew install automake libtool gcc
+          brew install --quiet automake libtool gcc
           ln -s $(brew --prefix gcc)/bin/gcc-?? /usr/local/bin/gcc
 
       - name: Install and cache Valgrind
         uses: ./.github/actions/install-homebrew-valgrind
+
+      - name: CI script
+        env: ${{ matrix.env_vars }}
+        run: ./ci/ci.sh
+
+      - run: cat tests.log || true
+        if: ${{ always() }}
+      - run: cat noverify_tests.log || true
+        if: ${{ always() }}
+      - run: cat exhaustive_tests.log || true
+        if: ${{ always() }}
+      - run: cat ctime_tests.log || true
+        if: ${{ always() }}
+      - run: cat bench.log || true
+        if: ${{ always() }}
+      - run: cat config.log || true
+        if: ${{ always() }}
+      - run: cat test_env.log || true
+        if: ${{ always() }}
+      - name: CI env
+        run: env
+        if: ${{ always() }}
+
+  arm64-macos-native:
+    name: "ARM64: macOS Sonoma"
+    # See: https://github.com/actions/runner-images#available-images.
+    runs-on: macos-14
+
+    env:
+      CC: 'clang'
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+      WITH_VALGRIND: 'no'
+      CTIMETESTS: 'no'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        env_vars:
+          - { WIDEMUL: 'int64',  RECOVERY: 'yes', ECDH: 'yes', EXTRAKEYS: 'yes', SCHNORRSIG: 'yes', ELLSWIFT: 'yes' }
+          - { WIDEMUL: 'int128_struct', ECMULTGENPRECISION: 2, ECMULTWINDOW: 4 }
+          - { WIDEMUL: 'int128',                  ECDH: 'yes', EXTRAKEYS: 'yes', SCHNORRSIG: 'yes', ELLSWIFT: 'yes' }
+          - { WIDEMUL: 'int128', RECOVERY: 'yes' }
+          - { WIDEMUL: 'int128', RECOVERY: 'yes', ECDH: 'yes', EXTRAKEYS: 'yes', SCHNORRSIG: 'yes', ELLSWIFT: 'yes' }
+          - { WIDEMUL: 'int128', RECOVERY: 'yes', ECDH: 'yes', EXTRAKEYS: 'yes', SCHNORRSIG: 'yes', ELLSWIFT: 'yes', CC: 'gcc' }
+          - { WIDEMUL: 'int128', RECOVERY: 'yes', ECDH: 'yes', EXTRAKEYS: 'yes', SCHNORRSIG: 'yes', ELLSWIFT: 'yes', CPPFLAGS: '-DVERIFY' }
+          - BUILD: 'distcheck'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Homebrew packages
+        run: |
+          brew install --quiet automake libtool gcc
+          ln -s $(brew --prefix gcc)/bin/gcc-?? /usr/local/bin/gcc
 
       - name: CI script
         env: ${{ matrix.env_vars }}
