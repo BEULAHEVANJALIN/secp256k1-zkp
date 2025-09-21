@@ -17,27 +17,30 @@
 #include "session.h"
 #include "../../eckey.h"
 #include "../../hash.h"
+#include "../../ecmult.h"
 #include "../../scalar.h"
 #include "../../util.h"
 
 static const unsigned char secp256k1_frost_secnonce_magic[4] = { 0x84, 0x7d, 0x46, 0x25 };
 
-static void secp256k1_frost_secnonce_save(secp256k1_frost_secnonce *secnonce, secp256k1_scalar *k) {
+static void secp256k1_frost_secnonce_save(secp256k1_frost_secnonce *secnonce, const secp256k1_scalar *k) {
     memcpy(&secnonce->data[0], secp256k1_frost_secnonce_magic, 4);
     secp256k1_scalar_get_b32(&secnonce->data[4], &k[0]);
     secp256k1_scalar_get_b32(&secnonce->data[36], &k[1]);
 }
 
-static int secp256k1_frost_secnonce_load(const secp256k1_context* ctx, secp256k1_scalar *k, secp256k1_frost_secnonce *secnonce) {
+static int secp256k1_frost_secnonce_load(const secp256k1_context* ctx, secp256k1_scalar *k, const secp256k1_frost_secnonce *secnonce) {
     int is_zero;
     ARG_CHECK(secp256k1_memcmp_var(&secnonce->data[0], secp256k1_frost_secnonce_magic, 4) == 0);
-    secp256k1_scalar_set_b32(&k[0], &secnonce->data[4], NULL);
-    secp256k1_scalar_set_b32(&k[1], &secnonce->data[36], NULL);
     /* We make very sure that the nonce isn't invalidated by checking the values
      * in addition to the magic. */
-    is_zero = secp256k1_scalar_is_zero(&k[0]) & secp256k1_scalar_is_zero(&k[1]);
+    is_zero = secp256k1_is_zero_array(&secnonce->data[4], 2 * 32);
     secp256k1_declassify(ctx, &is_zero, sizeof(is_zero));
     ARG_CHECK(!is_zero);
+
+    secp256k1_scalar_set_b32(&k[0], &secnonce->data[4], NULL);
+    secp256k1_scalar_set_b32(&k[1], &secnonce->data[36], NULL);
+    
     return 1;
 }
 
@@ -54,7 +57,7 @@ static const unsigned char secp256k1_frost_pubnonce_magic[4] = { 0x8b, 0xcf, 0xe
 
 /* Requires that none of the provided group elements is infinity. Works for both
  * frost_pubnonce and frost_aggnonce. */
-static void secp256k1_frost_pubnonce_save(secp256k1_frost_pubnonce* nonce, secp256k1_ge* ge) {
+static void secp256k1_frost_pubnonce_save(secp256k1_frost_pubnonce* nonce, const secp256k1_ge* ge) {
     int i;
     memcpy(&nonce->data[0], secp256k1_frost_pubnonce_magic, 4);
     for (i = 0; i < 2; i++) {
@@ -184,6 +187,7 @@ int secp256k1_frost_partial_sig_serialize(const secp256k1_context* ctx, unsigned
     VERIFY_CHECK(ctx != NULL);
     ARG_CHECK(out32 != NULL);
     ARG_CHECK(sig != NULL);
+    ARG_CHECK(secp256k1_memcmp_var(&sig->data[0], secp256k1_frost_partial_sig_magic, 4) == 0);
     memcpy(out32, &sig->data[4], 32);
     return 1;
 }
@@ -194,6 +198,7 @@ int secp256k1_frost_partial_sig_parse(const secp256k1_context* ctx, secp256k1_fr
     VERIFY_CHECK(ctx != NULL);
     ARG_CHECK(sig != NULL);
     ARG_CHECK(in32 != NULL);
+    memset(sig, 0, sizeof(*sig));
 
     secp256k1_scalar_set_b32(&tmp, in32, &overflow);
     if (overflow) {
@@ -252,13 +257,19 @@ static void secp256k1_nonce_function_frost(secp256k1_scalar *k, const unsigned c
         secp256k1_sha256_write(&sha_tmp, &i, 1);
         secp256k1_sha256_finalize(&sha_tmp, buf);
         secp256k1_scalar_set_b32(&k[i], buf, NULL);
+
+        /* Attempt to erase secret data */
+        secp256k1_memclear_explicit(buf, sizeof(buf));
+        secp256k1_sha256_clear(&sha_tmp);
     }
+    secp256k1_memclear_explicit(rand, sizeof(rand));
+    secp256k1_sha256_clear(&sha);
 }
 
 int secp256k1_frost_nonce_gen(const secp256k1_context* ctx, secp256k1_frost_secnonce *secnonce, secp256k1_frost_pubnonce *pubnonce, const unsigned char *session_id32, const secp256k1_frost_secshare *share, const unsigned char *msg32, const secp256k1_frost_keygen_cache *keygen_cache, const unsigned char *extra_input32) {
-    secp256k1_keygen_cache_internal cache_i;
     secp256k1_scalar k[2];
     secp256k1_ge nonce_pt[2];
+    secp256k1_gej nonce_ptj[2];
     int i;
     unsigned char pk_ser[32];
     unsigned char *pk_ser_ptr = NULL;
@@ -276,13 +287,16 @@ int secp256k1_frost_nonce_gen(const secp256k1_context* ctx, secp256k1_frost_secn
     ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));
     if (share == NULL) {
         /* Check in constant time that the session_id is not 0 as a
-         * defense-in-depth measure that may protect against a faulty RNG. */
-        unsigned char acc = 0;
-        for (i = 0; i < 32; i++) {
-            acc |= session_id32[i];
+         * defense-in-depth measure that may protect against a faulty RNG. 
+         * reject all-zero session_id inputs
+         */
+        ret &= !secp256k1_is_zero_array(session_id32, 32);
+        /* Branch only on caller-provided validity; safe to declassify. */
+        secp256k1_declassify(ctx, &ret, sizeof(ret));
+        if (ret == 0) {
+            secp256k1_frost_secnonce_invalidate(ctx, secnonce, 1);
+            return 0;
         }
-        ret &= !!acc;
-        memset(&acc, 0, sizeof(acc));
     }
 
     /* Check that the share is valid to be able to sign for it later. */
@@ -297,12 +311,18 @@ int secp256k1_frost_nonce_gen(const secp256k1_context* ctx, secp256k1_frost_secn
 #ifdef VERIFY
     VERIFY_CHECK(sk_serialize_success);
 #else
-    (void) sk_serialize_success;
+    if (!sk_serialize_success) {
+        sk_ser_ptr = NULL;
+    }
 #endif
     }
 
     if (keygen_cache != NULL) {
+        secp256k1_keygen_cache_internal cache_i;
         if (!secp256k1_keygen_cache_load(ctx, &cache_i, keygen_cache)) {
+            if (sk_ser_ptr != NULL) { 
+                secp256k1_memclear_explicit(sk_ser, sizeof(sk_ser)); 
+            }
             return 0;
         }
         /* The loaded point cache_i.pk can not be the point at infinity. */
@@ -311,18 +331,30 @@ int secp256k1_frost_nonce_gen(const secp256k1_context* ctx, secp256k1_frost_secn
     }
 
     secp256k1_nonce_function_frost(k, session_id32, msg32, sk_ser_ptr, pk_ser_ptr, extra_input32);
+    /* sk_ser may contain a serialized secret share; wipe after use */
+    if (sk_ser_ptr != NULL) {
+        secp256k1_memclear_explicit(sk_ser, sizeof(sk_ser));
+    }
     VERIFY_CHECK(!secp256k1_scalar_is_zero(&k[0]));
     VERIFY_CHECK(!secp256k1_scalar_is_zero(&k[1]));
     VERIFY_CHECK(!secp256k1_scalar_eq(&k[0], &k[1]));
+
     secp256k1_frost_secnonce_save(secnonce, k);
     secp256k1_frost_secnonce_invalidate(ctx, secnonce, !ret);
 
     for (i = 0; i < 2; i++) {
-        secp256k1_gej nonce_ptj;
-        secp256k1_ecmult_gen(&ctx->ecmult_gen_ctx, &nonce_ptj, &k[i]);
-        secp256k1_ge_set_gej(&nonce_pt[i], &nonce_ptj);
-        secp256k1_declassify(ctx, &nonce_pt[i], sizeof(nonce_pt));
+        secp256k1_ecmult_gen(&ctx->ecmult_gen_ctx, &nonce_ptj[i], &k[i]);
         secp256k1_scalar_clear(&k[i]);
+    }
+
+    /* Batch convert to two public ges */
+    secp256k1_ge_set_all_gej(nonce_pt, nonce_ptj, 2);
+    for (i = 0; i < 2; i++) {
+        secp256k1_gej_clear(&nonce_ptj[i]);
+    }
+    
+    for (i = 0; i < 2; i++) {
+        secp256k1_declassify(ctx, &nonce_pt[i], sizeof(nonce_pt[i]));
     }
     /* nonce_pt won't be infinity because k != 0 with overwhelming probability */
     secp256k1_frost_pubnonce_save(pubnonce, nonce_pt);
@@ -461,7 +493,7 @@ int secp256k1_frost_nonce_process(const secp256k1_context* ctx, secp256k1_frost_
     return 1;
 }
 
-void secp256k1_frost_partial_sign_clear(secp256k1_scalar *sk, secp256k1_scalar *k) {
+static void secp256k1_frost_partial_sign_clear(secp256k1_scalar *sk, secp256k1_scalar *k) {
     secp256k1_scalar_clear(sk);
     secp256k1_scalar_clear(&k[0]);
     secp256k1_scalar_clear(&k[1]);
@@ -482,7 +514,7 @@ int secp256k1_frost_partial_sign(const secp256k1_context* ctx, secp256k1_frost_p
     ret = secp256k1_frost_secnonce_load(ctx, k, secnonce);
     /* Set nonce to zero to avoid nonce reuse. This will cause subsequent calls
      * of this function to fail */
-    memset(secnonce, 0, sizeof(*secnonce));
+    secp256k1_memzero_explicit(secnonce, sizeof(*secnonce));
     if (!ret) {
         secp256k1_frost_partial_sign_clear(&sk, k);
         return 0;
