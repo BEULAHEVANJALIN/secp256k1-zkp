@@ -9,6 +9,7 @@
 
 #include "../include/secp256k1.h"
 
+#include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
