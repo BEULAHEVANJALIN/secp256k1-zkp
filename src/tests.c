@@ -3926,7 +3926,7 @@ static void test_ge(void) {
         secp256k1_ge_set_all_gej(&ge_set_all[1], &gej[1], 4 * runs);
         for (i = 1; i < 4 * runs + 1; i++) {
             secp256k1_fe s;
-            testutil_random_fe_non_zero(&s);
+            random_fe_non_zero(&s);
             secp256k1_gej_rescale(&gej[i], &s);
             CHECK(secp256k1_gej_eq_ge_var(&gej[i], &ge_set_all[i]));
             CHECK(secp256k1_ge_eq_var(&ge_set_all_var[i], &ge_set_all[i]));

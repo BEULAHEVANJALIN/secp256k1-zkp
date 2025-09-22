@@ -8,6 +8,7 @@
 #define SECP256K1_UTIL_H
 
 #include "../include/secp256k1.h"
+#include "checkmem.h"
 
 #include <string.h>
 #include <stdlib.h>
