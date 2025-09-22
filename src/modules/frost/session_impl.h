@@ -17,7 +17,6 @@
 #include "session.h"
 #include "../../eckey.h"
 #include "../../hash.h"
-#include "../../ecmult.h"
 #include "../../scalar.h"
 #include "../../util.h"
 

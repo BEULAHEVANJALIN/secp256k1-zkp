@@ -435,7 +435,13 @@ void frost_api_tests(void) {
     CHECK_ILLEGAL(CTX, secp256k1_frost_partial_sig_serialize(CTX, buf, NULL));
     CHECK(secp256k1_frost_partial_sig_parse(CTX, &partial_sig[0], buf) == 1);
     CHECK_ILLEGAL(CTX, secp256k1_frost_partial_sig_parse(CTX, NULL, buf));
-    CHECK(secp256k1_frost_partial_sig_parse(CTX, &partial_sig[0], max64) == 0);
+    {
+        /* Check that parsing failure results in an invalid (zeroed) sig
+        and doesn't clobber a real object we still need. */
+        secp256k1_frost_partial_sig tmp;
+        CHECK(secp256k1_frost_partial_sig_parse(CTX, &tmp, max64) == 0);
+        CHECK(secp256k1_memcmp_var(&tmp, zeros68, sizeof(tmp)) == 0);
+    }
     CHECK_ILLEGAL(CTX, secp256k1_frost_partial_sig_parse(CTX, &partial_sig[0], NULL));
 
     {
