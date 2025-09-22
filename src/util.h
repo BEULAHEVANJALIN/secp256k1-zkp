@@ -244,6 +244,47 @@ static SECP256K1_INLINE void secp256k1_memczero(void *s, size_t len, int flag) {
     }
 }
 
+/* Zeroes memory to prevent leaking sensitive info. Won't be optimized out. */
+static SECP256K1_INLINE void secp256k1_memzero_explicit(void *ptr, size_t len) {
+#if defined(_MSC_VER)
+    /* SecureZeroMemory is guaranteed not to be optimized out by MSVC. */
+    SecureZeroMemory(ptr, len);
+#elif defined(__GNUC__)
+    /* We use a memory barrier that scares the compiler away from optimizing out the memset.
+     *
+     * Quoting Adam Langley <agl@google.com> in commit ad1907fe73334d6c696c8539646c21b11178f20f
+     * in BoringSSL (ISC License):
+     *    As best as we can tell, this is sufficient to break any optimisations that
+     *    might try to eliminate "superfluous" memsets.
+     * This method is used in memzero_explicit() the Linux kernel, too. Its advantage is that it
+     * is pretty efficient, because the compiler can still implement the memset() efficiently,
+     * just not remove it entirely. See "Dead Store Elimination (Still) Considered Harmful" by
+     * Yang et al. (USENIX Security 2017) for more background.
+     */
+    memset(ptr, 0, len);
+    __asm__ __volatile__("" : : "r"(ptr) : "memory");
+#else
+    void *(*volatile const volatile_memset)(void *, int, size_t) = memset;
+    volatile_memset(ptr, 0, len);
+#endif
+}
+
+/* Cleanses memory to prevent leaking sensitive info. Won't be optimized out.
+ * The state of the memory after this call is unspecified so callers must not
+ * make any assumptions about its contents.
+ *
+ * In VERIFY builds, it has the side effect of marking the memory as undefined.
+ * This helps to detect use-after-clear bugs where code incorrectly reads from
+ * cleansed memory during testing.
+ */
+static SECP256K1_INLINE void secp256k1_memclear_explicit(void *ptr, size_t len) {
+    /* The current implementation zeroes, but callers must not rely on this */
+    secp256k1_memzero_explicit(ptr, len);
+#ifdef VERIFY
+    SECP256K1_CHECKMEM_UNDEFINE(ptr, len);
+#endif
+}
+
 /** Semantics like memcmp. Variable-time.
  *
  * We use this to avoid possible compiler bugs with memcmp, e.g.
@@ -274,7 +315,7 @@ static SECP256K1_INLINE int secp256k1_is_zero_array(const unsigned char *s, size
     }
     ret = (acc == 0);
     /* acc may contain secret values. Try to explicitly clear it. */
-    acc = 0;
+    secp256k1_memclear_explicit(&acc, sizeof(acc));
     return ret;
 }
 
