@@ -15,6 +15,10 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <limits.h>
+#if defined(_MSC_VER)
+/* For SecureZeroMemory */
+#include <Windows.h>
+#endif
 
 #define STR_(x) #x
 #define STR(x) STR_(x)
