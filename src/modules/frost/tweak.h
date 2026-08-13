@@ -1,0 +1,32 @@
+/**********************************************************************
+ * Copyright (c) 2021-2024 Jesse Posner                               *
+ * Distributed under the MIT software license, see the accompanying   *
+ * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
+ **********************************************************************/
+
+#ifndef SECP256K1_MODULE_FROST_TWEAK_H
+#define SECP256K1_MODULE_FROST_TWEAK_H
+
+#include "../../../include/secp256k1.h"
+#include "../../../include/secp256k1_frost.h"
+
+#include "../../group.h"
+#include "../../scalar.h"
+
+typedef struct {
+    /* Current threshold public key. */
+    secp256k1_ge pk;
+    /* tweak is identical to value tacc[v] in the specification. */
+    secp256k1_scalar tweak;
+    /* parity_acc corresponds to (1 - gacc[v])/2 in the spec. So if gacc[v] is
+     * -1, parity_acc is 1. Otherwise, parity_acc is 0. */
+    int parity_acc;
+} secp256k1_frost_tweak_ctx_internal;
+
+static int secp256k1_frost_tweak_ctx_load(
+    const secp256k1_context *ctx,
+    secp256k1_frost_tweak_ctx_internal *ctx_i,
+    const secp256k1_frost_tweak_ctx *tweak_ctx
+);
+
+#endif

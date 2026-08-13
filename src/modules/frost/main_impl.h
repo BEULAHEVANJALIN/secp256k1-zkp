@@ -7,4 +7,6 @@
 #ifndef SECP256K1_MODULE_FROST_MAIN
 #define SECP256K1_MODULE_FROST_MAIN
 
+#include "tweak_impl.h"
+
 #endif
