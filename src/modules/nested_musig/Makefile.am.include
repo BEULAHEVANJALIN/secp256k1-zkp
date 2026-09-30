@@ -1,0 +1,2 @@
+include_HEADERS += include/secp256k1_nested_musig.h
+noinst_HEADERS += src/modules/nested_musig/main_impl.h

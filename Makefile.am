@@ -358,6 +358,10 @@ if ENABLE_MODULE_MUSIG
 include src/modules/musig/Makefile.am.include
 endif
 
+if ENABLE_MODULE_NESTED_MUSIG
+include src/modules/nested_musig/Makefile.am.include
+endif
+
 if ENABLE_MODULE_ELLSWIFT
 include src/modules/ellswift/Makefile.am.include
 endif
