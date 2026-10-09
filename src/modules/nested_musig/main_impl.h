@@ -9,4 +9,6 @@
 
 #include "../../../include/secp256k1_nested_musig.h"
 
+#include "keyagg_impl.h"
+
 #endif

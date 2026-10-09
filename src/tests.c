@@ -8113,6 +8113,10 @@ static void run_ecdsa_wycheproof(void) {
 # include "modules/musig/tests_impl.h"
 #endif
 
+#ifdef ENABLE_MODULE_NESTED_MUSIG
+# include "modules/nested_musig/tests_impl.h"
+#endif
+
 #ifdef ENABLE_MODULE_ELLSWIFT
 # include "modules/ellswift/tests_impl.h"
 #endif
@@ -8470,6 +8474,9 @@ static const struct tf_test_module registry_modules[] = {
 #endif
 #ifdef ENABLE_MODULE_MUSIG
     MAKE_TEST_MODULE(musig),
+#endif
+#ifdef ENABLE_MODULE_NESTED_MUSIG
+    MAKE_TEST_MODULE(nested_musig),
 #endif
 #ifdef ENABLE_MODULE_ELLSWIFT
     MAKE_TEST_MODULE(ellswift),
