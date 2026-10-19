@@ -223,22 +223,28 @@ static void nested_musig_test_vectors_keyagg(void) {
     }
 }
 
+static void nested_musig_keyagg_singleton_test(void) {
+    secp256k1_pubkey pk, singleton;
+    const secp256k1_pubkey *pk_ptr[1];
+    secp256k1_nested_musig_keyagg_cache keyagg_cache;
+    secp256k1_nested_musig_keyagg_cache_internal cache_i;
+    unsigned char buf[33];
+    size_t buflen;
+
+    CHECK(secp256k1_ec_pubkey_parse(CTX, &pk, nested_musig_key_agg_vector.pubkeys[0], 33));
+    pk_ptr[0] = &pk;
+    CHECK(secp256k1_nested_musig_pubkey_agg(CTX, NULL, &keyagg_cache, pk_ptr, 1) == 1);
+    CHECK(secp256k1_nested_musig_pubkey_get(CTX, &singleton, &keyagg_cache) == 1);
+    buflen = sizeof(buf);
+    CHECK(secp256k1_ec_pubkey_serialize(CTX, buf, &buflen, &singleton, SECP256K1_EC_COMPRESSED) == 1);
+    CHECK(buflen == sizeof(buf));
+    CHECK(secp256k1_memcmp_var(buf, nested_musig_keyagg_singleton_expected, sizeof(buf)) == 0);
+    CHECK(secp256k1_nested_musig_keyagg_cache_load(CTX, &cache_i, &keyagg_cache));
+    CHECK(secp256k1_ge_is_infinity(&cache_i.second_pk));
+}
+
 static void nested_musig_keyagg_nested_test(void) {
-    static const unsigned char expected_singleton[33] = {
-        0x02, 0x74, 0x10, 0x8c, 0xa6, 0xd5, 0xed, 0x40,
-        0xb3, 0x7c, 0x4a, 0x44, 0x1e, 0x96, 0x43, 0x8d,
-        0x14, 0x4b, 0xd7, 0xe9, 0x5c, 0xd5, 0x15, 0xb9,
-        0x96, 0xca, 0x4f, 0x70, 0xf7, 0x83, 0x42, 0xf0,
-        0xad
-    };
-    static const unsigned char expected_parent[33] = {
-        0x03, 0x76, 0xa1, 0xda, 0x52, 0x8d, 0x90, 0x1b,
-        0xae, 0x2d, 0xd0, 0xb1, 0xb0, 0x00, 0xda, 0xc2,
-        0x1e, 0xb0, 0x89, 0xc1, 0xff, 0x3f, 0xe2, 0x88,
-        0xc8, 0x78, 0x31, 0x76, 0x33, 0x51, 0xd9, 0x0b,
-        0x12
-    };
-    secp256k1_pubkey pk[3], child, parent, singleton;
+    secp256k1_pubkey pk[3], child, parent;
     secp256k1_xonly_pubkey child_xonly;
     const secp256k1_pubkey *child_ptr[4];
     const secp256k1_pubkey *parent_ptr[2];
@@ -252,16 +258,6 @@ static void nested_musig_keyagg_nested_test(void) {
     for (i = 0; i < ARRAY_SIZE(pk); i++) {
         CHECK(secp256k1_ec_pubkey_parse(CTX, &pk[i], nested_musig_key_agg_vector.pubkeys[i], 33));
     }
-
-    child_ptr[0] = &pk[0];
-    CHECK(secp256k1_nested_musig_pubkey_agg(CTX, NULL, &keyagg_cache, child_ptr, 1) == 1);
-    CHECK(secp256k1_nested_musig_pubkey_get(CTX, &singleton, &keyagg_cache) == 1);
-    buflen = sizeof(buf);
-    CHECK(secp256k1_ec_pubkey_serialize(CTX, buf, &buflen, &singleton, SECP256K1_EC_COMPRESSED) == 1);
-    CHECK(buflen == sizeof(buf));
-    CHECK(secp256k1_memcmp_var(buf, expected_singleton, sizeof(buf)) == 0);
-    CHECK(secp256k1_nested_musig_keyagg_cache_load(CTX, &cache_i, &keyagg_cache));
-    CHECK(secp256k1_ge_is_infinity(&cache_i.second_pk));
 
     child_ptr[0] = &pk[0];
     child_ptr[1] = &pk[0];
@@ -293,7 +289,7 @@ static void nested_musig_keyagg_nested_test(void) {
     buflen = sizeof(buf);
     CHECK(secp256k1_ec_pubkey_serialize(CTX, buf, &buflen, &parent, SECP256K1_EC_COMPRESSED) == 1);
     CHECK(buflen == sizeof(buf));
-    CHECK(secp256k1_memcmp_var(buf, expected_parent, sizeof(buf)) == 0);
+    CHECK(secp256k1_memcmp_var(buf, nested_musig_keyagg_parent_expected, sizeof(buf)) == 0);
 }
 
 /* --- Test registry --- */
@@ -301,6 +297,7 @@ static const struct tf_test_entry tests_nested_musig[] = {
     CASE1(nested_musig_api_tests),
     CASE1(nested_musig_sha256_tag_test),
     CASE1(nested_musig_test_vectors_keyagg),
+    CASE1(nested_musig_keyagg_singleton_test),
     CASE1(nested_musig_keyagg_nested_test),
 };
 
